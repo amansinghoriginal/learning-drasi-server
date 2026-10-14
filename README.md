@@ -78,6 +78,14 @@ python3 scripts/render-tutorials.py          # write README.md files
 python3 scripts/render-tutorials.py --check   # fail if any are stale (CI check)
 ```
 
+## Automated Tutorial Evaluation
+
+The [manual evaluation workflow](.github/workflows/tutorial-evaluation.yml) and
+[scheduled evaluation workflow](.github/workflows/tutorial-evaluation-scheduled.yml)
+use Copilot CLI's default model rather than a pinned model ID. The manual workflow
+accepts an optional `model` input to override that default; leave it blank to use
+the CLI default. Scheduled evaluations always use the CLI default.
+
 ## Project Links
 
 - [Drasi Server](https://github.com/drasi-project/drasi-server)
