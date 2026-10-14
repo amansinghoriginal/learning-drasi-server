@@ -95,7 +95,11 @@ check reads only the last attempted workspace.
 The evaluator follows the tutorial commands, replacing `docker exec -it` with
 `docker exec -i` in its non-interactive shell and running the server and SSE CLI
 as background processes to emulate separate terminals. Time-based checks follow
-the waits and expected behavior documented in the tutorial.
+the waits and expected behavior documented in the tutorial, with one explicit
+allowance: Step 6 may take up to 30 seconds after query creation to populate its
+initial inactive-senders results. The evaluator verifies that state before the
+Alice tests, records any delay as a non-blocking documentation discrepancy, and
+still requires the subsequent DELETE/ADD transitions to match the guide.
 
 ## Project Links
 
