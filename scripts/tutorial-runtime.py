@@ -318,10 +318,10 @@ def serve(args):
     text = re.sub(r"^pluginRegistry:.*\n", "", text, flags=re.MULTILINE)
     text = f"pluginRegistry: {json.dumps(str(plugins))}\n{text}"
     config.write_text(text)
-    match = re.search(r"^id:\s*(\S+)\s*$", text, re.MULTILINE)
-    if not match:
-        raise RuntimeError("Expected a top-level instance id in tutorial config")
-    instance_id = match.group(1).strip("\"'")
+    instance_ids = re.findall(r"^  - id:\s*(\S+)\s*$", text, re.MULTILINE)
+    if len(instance_ids) != 1:
+        raise RuntimeError("Expected one explicitly named instances entry in tutorial config")
+    instance_id = instance_ids[0].strip("\"'")
     run = evidence / f"server-{time.time_ns()}"
     run.mkdir()
     argv = [

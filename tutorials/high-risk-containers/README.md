@@ -390,7 +390,7 @@ Each column is one of the fields the query returns, and `grid` places the widget
 > You can also query Drasi Server's REST API while the demo runs; see `requests.http` for ready-made requests, for example:
 >
 > ```text
-> GET http://localhost:8380/api/v1/queries/high-risk-containers/results
+> GET http://localhost:8380/api/v1/instances/high-risk-containers-server/queries/high-risk-containers/results
 > ```
 
 ## Optional: Discord Alerts

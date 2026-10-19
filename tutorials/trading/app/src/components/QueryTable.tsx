@@ -251,7 +251,6 @@ function formatQueryConfig(config: Record<string, any>): string {
 
   // Optional fields
   addField('enableBootstrap', config.enableBootstrap);
-  addField('bootstrapBufferSize', config.bootstrapBufferSize);
   if (config.middleware?.length) {
     lines.push(`middleware: [${config.middleware.join(', ')}]`);
   }

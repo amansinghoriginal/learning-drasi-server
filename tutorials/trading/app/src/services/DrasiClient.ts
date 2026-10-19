@@ -25,13 +25,21 @@ export class DrasiClient {
   private createdQueries: Set<string> = new Set();
   private createdReaction = false;
   private customQueries: Set<string> = new Set();
-  private instanceId: string | null = null;
+  private readonly instanceId: string;
 
-  constructor(baseUrl?: string) {
+  constructor(baseUrl?: string, instanceId = 'trading-server') {
+    if (!instanceId || instanceId === '.' || instanceId === '..') {
+      throw new Error('A valid trading instance ID is required.');
+    }
+    this.instanceId = instanceId;
     // Use direct URL - Drasi Server should have CORS enabled
     this.baseUrl = baseUrl || 'http://localhost:8280';
   this.sseClient = new DrasiSSEClient();
     this.initializeQueries();
+  }
+
+  private get instanceApiUrl(): string {
+    return `${this.baseUrl}/api/v1/instances/${encodeURIComponent(this.instanceId)}`;
   }
 
   private initializeQueries() {
@@ -56,23 +64,13 @@ export class DrasiClient {
         throw new Error('Drasi Server is not healthy');
       }
 
-      // Discover the instance ID (convenience routes map to the first instance)
-      try {
-        const instancesResponse = await fetch(`${this.baseUrl}/api/v1/instances`);
-        if (instancesResponse.ok) {
-          const instancesJson = await instancesResponse.json();
-          const instances = instancesJson.data ?? instancesJson;
-          if (Array.isArray(instances) && instances.length > 0) {
-            this.instanceId = instances[0].id ?? instances[0];
-            console.log(`Discovered instance ID: ${this.instanceId}`);
-          }
-        }
-      } catch (err) {
-        console.warn('Could not discover instance ID:', err);
+      const instanceResponse = await fetch(`${this.instanceApiUrl}/runtime`);
+      if (!instanceResponse.ok) {
+        throw new Error(`Trading instance '${this.instanceId}' is unavailable (HTTP ${instanceResponse.status}).`);
       }
 
       // Check if sources exist
-    const sourcesResponse = await fetch(`${this.baseUrl}/api/v1/sources`);
+    const sourcesResponse = await fetch(`${this.instanceApiUrl}/sources`);
     const sourcesData = await sourcesResponse.json();
     const sources = sourcesData.data || sourcesData; // Handle both wrapped and unwrapped responses
 
@@ -146,7 +144,7 @@ export class DrasiClient {
   private async ensureReaction(): Promise<string> {
     try {
       // Check if reaction exists
-      const checkResponse = await fetch(`${this.baseUrl}/api/v1/reactions/${this.reactionId}?view=full`);
+      const checkResponse = await fetch(`${this.instanceApiUrl}/reactions/${encodeURIComponent(this.reactionId)}?view=full`);
       
       if (checkResponse.status === 404) {
         // Reaction doesn't exist, create it
@@ -164,7 +162,7 @@ export class DrasiClient {
           heartbeatIntervalMs: 15000
         };
 
-        const createResponse = await fetch(`${this.baseUrl}/api/v1/reactions`, {
+        const createResponse = await fetch(`${this.instanceApiUrl}/reactions`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(reactionConfig)
@@ -179,7 +177,7 @@ export class DrasiClient {
         this.createdReaction = true;
 
         // Start the reaction
-        await fetch(`${this.baseUrl}/api/v1/reactions/${this.reactionId}/start`, { method: 'POST' });
+        await fetch(`${this.instanceApiUrl}/reactions/${encodeURIComponent(this.reactionId)}/start`, { method: 'POST' });
         return 'http://localhost:8281/events';
       } else if (checkResponse.ok) {
         // Reaction exists, make sure it's running
@@ -188,7 +186,7 @@ export class DrasiClient {
         const config = payload?.config ?? payload;
         if ((payload?.status ?? config.status) !== 'running') {
           console.log(`Starting reaction: ${this.reactionId}`);
-          await fetch(`${this.baseUrl}/api/v1/reactions/${this.reactionId}/start`, { method: 'POST' });
+          await fetch(`${this.instanceApiUrl}/reactions/${encodeURIComponent(this.reactionId)}/start`, { method: 'POST' });
         }
         // Derive endpoint from existing reaction properties
         const props = config?.properties || config || {};
@@ -211,7 +209,7 @@ export class DrasiClient {
   private async ensureQuery(queryDef: QueryDefinition): Promise<void> {
     try {
       // Check if query exists
-      const checkResponse = await fetch(`${this.baseUrl}/api/v1/queries/${queryDef.id}?view=full`);
+      const checkResponse = await fetch(`${this.instanceApiUrl}/queries/${encodeURIComponent(queryDef.id)}?view=full`);
       
       if (checkResponse.status === 404) {
         // Query doesn't exist, create it
@@ -226,7 +224,7 @@ export class DrasiClient {
           autoStart: true
         };
 
-        const createResponse = await fetch(`${this.baseUrl}/api/v1/queries`, {
+        const createResponse = await fetch(`${this.instanceApiUrl}/queries`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(queryConfig)
@@ -241,7 +239,7 @@ export class DrasiClient {
         this.createdQueries.add(queryDef.id);
 
         // Start the query
-        await fetch(`${this.baseUrl}/api/v1/queries/${queryDef.id}/start`, { method: 'POST' });
+        await fetch(`${this.instanceApiUrl}/queries/${encodeURIComponent(queryDef.id)}/start`, { method: 'POST' });
         
       } else if (checkResponse.ok) {
         // Query exists, make sure it's running
@@ -250,7 +248,7 @@ export class DrasiClient {
         const config = payload?.config ?? payload;
         if ((payload?.status ?? config.status) !== 'running') {
           console.log(`Starting query: ${queryDef.id}`);
-          await fetch(`${this.baseUrl}/api/v1/queries/${queryDef.id}/start`, { method: 'POST' });
+          await fetch(`${this.instanceApiUrl}/queries/${encodeURIComponent(queryDef.id)}/start`, { method: 'POST' });
         }
       }
     } catch (error) {
@@ -313,7 +311,7 @@ export class DrasiClient {
       ...Array.from(this.customQueries)
     ];
 
-    const updateResponse = await fetch(`${this.baseUrl}/api/v1/reactions/${this.reactionId}`, {
+    const updateResponse = await fetch(`${this.instanceApiUrl}/reactions/${encodeURIComponent(this.reactionId)}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -331,7 +329,7 @@ export class DrasiClient {
    */
   async getQueryConfig(queryId: string): Promise<Record<string, any> | null> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/v1/queries/${queryId}?view=full`);
+      const response = await fetch(`${this.instanceApiUrl}/queries/${encodeURIComponent(queryId)}?view=full`);
       if (!response.ok) {
         console.warn(`Failed to fetch query config for ${queryId}: ${response.status}`);
         return null;
@@ -351,7 +349,7 @@ export class DrasiClient {
    */
   async getQueryResults(queryId: string): Promise<any[]> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/v1/queries/${queryId}/results`);
+      const response = await fetch(`${this.instanceApiUrl}/queries/${encodeURIComponent(queryId)}/results`);
       if (!response.ok) {
         console.warn(`No results available for query ${queryId}`);
         return [];
@@ -391,7 +389,6 @@ export class DrasiClient {
    * Get the Drasi Server UI URL for the current instance
    */
   getDrasiUiUrl(): string | null {
-    if (!this.instanceId) return null;
     return `${this.baseUrl}/ui?instance=${encodeURIComponent(this.instanceId)}`;
   }
 

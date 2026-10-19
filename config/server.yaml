@@ -12,20 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-id: d2d6882b-b602-4107-b44b-84c68044c615
 host: 0.0.0.0
 port: 8080
 logLevel: info
 persistConfig: true
-persistIndex: false
 enableUi: true
 pluginRegistry: ghcr.io/drasi-project
 autoInstallPlugins: false
 verifyPlugins: true
 hotReloadPlugins: false
 hotReloadDebounceMs: 2000
-sources: []
-queries: []
-reactions: []
-identityProviders: []
-instances: []
+instances:
+  - id: d2d6882b-b602-4107-b44b-84c68044c615
+    persistIndex: false
+    sources: []
+    queries: []
+    reactions: []
+    identityProviders: []

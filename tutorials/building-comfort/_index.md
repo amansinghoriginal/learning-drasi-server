@@ -424,8 +424,8 @@ Because the reaction pushes only what *changed* — never the full result set �
 You can also query Drasi Server's REST API while the demo runs — see `requests.http` for ready-made requests, for example:
 
 ```text
-GET http://localhost:8380/api/v1/queries/building-comfort-ui/results
-GET http://localhost:8380/api/v1/queries/room-alert/results
+GET http://localhost:8380/api/v1/instances/building-comfort-server/queries/building-comfort-ui/results
+GET http://localhost:8380/api/v1/instances/building-comfort-server/queries/room-alert/results
 ```
 {{% /alert %}}
 

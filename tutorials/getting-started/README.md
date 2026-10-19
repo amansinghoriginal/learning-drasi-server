@@ -262,14 +262,14 @@ At any time during the tutorial you can view the current result set of a Continu
 
 Click to open the following URL in a browser:
 
-<a href="http://localhost:8080/api/v1/queries/all-messages/results" target="_blank">http://localhost:8080/api/v1/queries/all-messages/results</a>
+<a href="http://localhost:8080/api/v1/instances/getting-started-server/queries/all-messages/results" target="_blank">http://localhost:8080/api/v1/instances/getting-started-server/queries/all-messages/results</a>
 
 **curl**
 
 Run the following curl command in the terminal:
 
 ```bash
-curl -s http://localhost:8080/api/v1/queries/all-messages/results
+curl -s http://localhost:8080/api/v1/instances/getting-started-server/queries/all-messages/results
 ```
 
 **VS Code REST Client**
@@ -437,7 +437,7 @@ In **Terminal 2**, use the following `curl` command to create the `hello-world-s
 **bash / zsh**
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/queries \
+curl -X POST http://localhost:8080/api/v1/instances/getting-started-server/queries \
   -H "Content-Type: application/json" \
   -d '{
     "id": "hello-world-senders",
@@ -451,7 +451,7 @@ curl -X POST http://localhost:8080/api/v1/queries \
 **PowerShell**
 
 ```powershell
-Invoke-RestMethod -Method Post -Uri http://localhost:8080/api/v1/queries `
+Invoke-RestMethod -Method Post -Uri http://localhost:8080/api/v1/instances/getting-started-server/queries `
   -ContentType "application/json" `
   -Body '{
     "id": "hello-world-senders",
@@ -480,10 +480,10 @@ To subscribe the Log Reaction to the new query, you need to delete and re-create
 
 ```bash
 # Delete the existing log-reaction
-curl -X DELETE http://localhost:8080/api/v1/reactions/log-reaction
+curl -X DELETE http://localhost:8080/api/v1/instances/getting-started-server/reactions/log-reaction
 
 # Re-create the log-reaction subscribed to both Continuous Queries
-curl -X POST http://localhost:8080/api/v1/reactions \
+curl -X POST http://localhost:8080/api/v1/instances/getting-started-server/reactions \
   -H "Content-Type: application/json" \
   -d '{
     "kind": "log",
@@ -497,10 +497,10 @@ curl -X POST http://localhost:8080/api/v1/reactions \
 
 ```powershell
 # Delete the existing log reaction
-Invoke-RestMethod -Method Delete -Uri http://localhost:8080/api/v1/reactions/log-reaction
+Invoke-RestMethod -Method Delete -Uri http://localhost:8080/api/v1/instances/getting-started-server/reactions/log-reaction
 
 # Re-create it subscribed to both queries
-Invoke-RestMethod -Method Post -Uri http://localhost:8080/api/v1/reactions `
+Invoke-RestMethod -Method Post -Uri http://localhost:8080/api/v1/instances/getting-started-server/reactions `
   -ContentType "application/json" `
   -Body '{
     "kind": "log",
@@ -521,13 +521,13 @@ Even though you haven't inserted any new data, if you view the `hello-world-send
 **bash / zsh**
 
 ```bash
-curl -s http://localhost:8080/api/v1/queries/hello-world-senders/results
+curl -s http://localhost:8080/api/v1/instances/getting-started-server/queries/hello-world-senders/results
 ```
 
 **PowerShell**
 
 ```powershell
-Invoke-RestMethod -Method Get -Uri http://localhost:8080/api/v1/queries/hello-world-senders/results
+Invoke-RestMethod -Method Get -Uri http://localhost:8080/api/v1/instances/getting-started-server/queries/hello-world-senders/results
 ```
 
 ...you'll see that it already includes Brian Kernighan's "Hello World" message:
@@ -635,7 +635,7 @@ In **Terminal 2**, use the following curl command to create the `message-counts`
 **bash / zsh**
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/queries \
+curl -X POST http://localhost:8080/api/v1/instances/getting-started-server/queries \
   -H "Content-Type: application/json" \
   -d '{
     "id": "message-counts",
@@ -649,7 +649,7 @@ curl -X POST http://localhost:8080/api/v1/queries \
 **PowerShell**
 
 ```powershell
-Invoke-RestMethod -Method Post -Uri http://localhost:8080/api/v1/queries `
+Invoke-RestMethod -Method Post -Uri http://localhost:8080/api/v1/instances/getting-started-server/queries `
   -ContentType "application/json" `
   -Body '{
     "id": "message-counts",
@@ -865,7 +865,7 @@ In **Terminal 2**, use the following curl command to create the `inactive-sender
 **bash / zsh**
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/queries \
+curl -X POST http://localhost:8080/api/v1/instances/getting-started-server/queries \
   -H "Content-Type: application/json" \
   -d '{
     "id": "inactive-senders",
@@ -879,7 +879,7 @@ curl -X POST http://localhost:8080/api/v1/queries \
 **PowerShell**
 
 ```powershell
-Invoke-RestMethod -Method Post -Uri http://localhost:8080/api/v1/queries `
+Invoke-RestMethod -Method Post -Uri http://localhost:8080/api/v1/instances/getting-started-server/queries `
   -ContentType "application/json" `
   -Body '{
     "id": "inactive-senders",
@@ -914,7 +914,7 @@ In **Terminal 3**, start the SSE CLI:
 
 > **What you'll see, given the earlier steps**
 >
-> Because every sender created in earlier steps (Buzz Lightyear, Brian Kernighan, Antoninus, David, Alice, Bob) has now been idle for far more than 20 seconds, the `inactive-senders` result set is **already pre-populated** with all of them when you start streaming — `GET /api/v1/queries/inactive-senders/results` returns them all immediately. As a result, the transitions below are relative to that pre-populated state: re-inserting a message for Alice first **removes** her from the set (a `DELETE`, because she's active again) and then, about 20 seconds later, **adds** her back (an `ADD`) when she becomes idle once more. If you'd prefer to watch a sender enter the set from an empty starting point, start the tutorial from a fresh database.
+> Because every sender created in earlier steps (Buzz Lightyear, Brian Kernighan, Antoninus, David, Alice, Bob) has now been idle for far more than 20 seconds, the `inactive-senders` result set is **already pre-populated** with all of them when you start streaming — `GET /api/v1/instances/getting-started-server/queries/inactive-senders/results` returns them all immediately. As a result, the transitions below are relative to that pre-populated state: re-inserting a message for Alice first **removes** her from the set (a `DELETE`, because she's active again) and then, about 20 seconds later, **adds** her back (an `ADD`) when she becomes idle once more. If you'd prefer to watch a sender enter the set from an empty starting point, start the tutorial from a fresh database.
 
 In **Terminal 2**, create a new message from Alice:
 
@@ -1093,7 +1093,7 @@ In **Terminal 2**, use the following curl command to create the `location-tracke
 **bash / zsh**
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/sources \
+curl -X POST http://localhost:8080/api/v1/instances/getting-started-server/sources \
   -H "Content-Type: application/json" \
   -d '{
     "kind": "http",
@@ -1111,7 +1111,7 @@ curl -X POST http://localhost:8080/api/v1/sources \
 **PowerShell**
 
 ```powershell
-Invoke-RestMethod -Method Post -Uri http://localhost:8080/api/v1/sources `
+Invoke-RestMethod -Method Post -Uri http://localhost:8080/api/v1/instances/getting-started-server/sources `
   -ContentType "application/json" `
   -Body '{
     "kind": "http",
@@ -1135,7 +1135,7 @@ In **Terminal 2**, use the following curl command to create the `messages-with-l
 **bash / zsh**
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/queries \
+curl -X POST http://localhost:8080/api/v1/instances/getting-started-server/queries \
   -H "Content-Type: application/json" \
   -d '{
     "id": "messages-with-location",
@@ -1156,7 +1156,7 @@ curl -X POST http://localhost:8080/api/v1/queries \
 **PowerShell**
 
 ```powershell
-Invoke-RestMethod -Method Post -Uri http://localhost:8080/api/v1/queries `
+Invoke-RestMethod -Method Post -Uri http://localhost:8080/api/v1/instances/getting-started-server/queries `
   -ContentType "application/json" `
   -Body '{
     "id": "messages-with-location",
