@@ -18,7 +18,7 @@
 
 set -e
 
-# Pin Drasi Server. 0.2.2 ships plugin-sdk 0.11, which loads source/otel 0.1.0.
+# Drasi Server 0.2.2 uses FFI ABI 0.13, matching the pinned server-config.yaml plugins.
 DRASI_SERVER_VERSION="${DRASI_SERVER_VERSION:-0.2.2}"
 REPO_URL="https://github.com/drasi-project/drasi-server/releases/download/${DRASI_SERVER_VERSION}"
 # Host and the Linux dev container share this folder via bind mount. Keep

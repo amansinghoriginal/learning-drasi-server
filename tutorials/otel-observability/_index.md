@@ -58,7 +58,7 @@ This tutorial builds that correlation layer on **Drasi Server**. Three mock stor
 
 {{% alert title="Before you begin" color="info" %}}
 - **Terminals:** you'll use two. **Terminal 1** runs the demo (it stays in the foreground). Use **Terminal 2** to change Kubernetes, PostgreSQL, and the mock services with `kubectl`, SQL, and `curl`.
-- **Working directory:** run every command from the tutorial directory (`tutorials/otel-observability/`). The dev container opens there automatically; if you're running locally, `cd tutorials/otel-observability` first.
+- **Working directory:** after Step 1, run every command from the tutorial directory (`learning-drasi-server/tutorials/otel-observability/`). The dev container opens there automatically.
 - **Command tabs:** commands are shown in tabs (*bash / zsh* and *PowerShell*). Use the one for your shell. The dev container and Codespaces use *bash*.
 - **Ports:** the Drasi Server API is on `8380`, the dashboard is on `3000`, PostgreSQL is on `5732`, the OTel source is on `14317`, the checkout control API is on `18080`, and the k3d Kubernetes API is on `6551`.
 - **What this is not:** Drasi is not replacing Prometheus, Grafana, Loki, or a tracing backend. It keeps a bounded live graph for correlation.
@@ -70,7 +70,7 @@ This tutorial needs **Docker** (it runs PostgreSQL, builds three mock service im
 
 ### Option A: Dev Container or GitHub Codespaces (recommended)
 
-1. Open this repository in VS Code and run **Reopen in Container** (or create a **Codespace** from the repo's **Code** menu).
+1. Open the [learning-drasi-server repository](https://github.com/drasi-project/learning-drasi-server). For local VS Code, clone the repository, open the `learning-drasi-server` folder, and run **Reopen in Container**. For Codespaces, select **Code > Codespaces > New with options**.
 2. When prompted for a configuration, choose **Drasi Server - OTel Observability Tutorial**.
 3. Wait for the container to finish. Its setup script installs the PostgreSQL client, `kubectl`, and `k3d`, and downloads the Drasi Server binary.
 
@@ -78,23 +78,25 @@ That's it. Skip ahead to [Step 2](#run).
 
 ### Option B: Run Locally
 
-You'll need **Docker** (for PostgreSQL, image builds, and k3d), [**k3d**](https://k3d.io/#installation), [**kubectl**](https://kubernetes.io/docs/tasks/tools/), and **bash** (the helper scripts use it; on Windows use Git Bash or WSL, or use the PowerShell tabs). From the repository root, move into the tutorial directory and download the Drasi Server binary:
+You'll need **Git**, **Docker** (for PostgreSQL, image builds, and k3d), [**k3d**](https://k3d.io/#installation), [**kubectl**](https://kubernetes.io/docs/tasks/tools/), and **bash** (the helper scripts use it; on Windows use Git Bash or WSL, or use the PowerShell tabs). Clone the [learning-drasi-server repository](https://github.com/drasi-project/learning-drasi-server), move into the tutorial directory, and download the Drasi Server binary:
 
 {{< tabpane persist="header" >}}
 {{< tab header="bash / zsh" lang="bash" >}}
-cd tutorials/otel-observability
+git clone https://github.com/drasi-project/learning-drasi-server.git
+cd learning-drasi-server/tutorials/otel-observability
 bash scripts/download.sh
 {{< /tab >}}
 {{< tab header="PowerShell" lang="powershell" >}}
-cd tutorials/otel-observability
+git clone https://github.com/drasi-project/learning-drasi-server.git
+cd learning-drasi-server/tutorials/otel-observability
 powershell -ExecutionPolicy Bypass -File scripts/download.ps1
 {{< /tab >}}
 {{< /tabpane >}}
 
-This places the binary at `bin/drasi-server` (or `bin\drasi-server.exe` on Windows) inside the tutorial directory.
+If you already have a checkout, use that checkout instead of cloning again. The download places the binary at `bin/<os>-<arch>/drasi-server` on macOS and Linux, or `bin\drasi-server.exe` on Windows, inside the tutorial directory.
 
 {{% alert title="Pinned versions" color="info" %}}
-This tutorial pins **Drasi Server 0.2.2** and the published **`source/otel:0.1.0`** plugin (plugin-sdk 0.11, signed).
+This tutorial pins **Drasi Server 0.2.2** and every plugin in `server-config.yaml`, including the optional HTTP reaction. Keep these versions together. Newer plugins can have an incompatible FFI ABI even when their SDK package versions appear compatible.
 {{% /alert %}}
 
 ## Step 2 of 4: Run the Demo {#run}
@@ -117,7 +119,7 @@ The `start-demo` script does four things:
 3. **Starts PostgreSQL** and seeds `service_slo_policy` (checkout / `latency_p99_ms` / 750 ms).
 4. **Runs Drasi Server** in the foreground with the full configuration.
 
-On first start, Drasi Server downloads the signed registry plugins it needs (`source/postgres`, `bootstrap/postgres`, `source/kubernetes`, `bootstrap/kubernetes`, `source/otel:0.1.0`, `reaction/dashboard:0.1.5`, `reaction/log`) from `ghcr.io/drasi-project`. When you see a line like the following, it's ready:
+On first start, Drasi Server downloads the seven signed registry plugins at the versions pinned in `server-config.yaml` from `ghcr.io/drasi-project`. When you see a line like the following, it's ready:
 
 ```text
 Drasi Server started successfully with API on port 8380
@@ -196,25 +198,22 @@ kubectl label deployment/checkout version=v41 --overwrite
 
 The threshold lives in PostgreSQL, not in the query. Checkout v41 is already ~400 ms, so dropping the policy to 100 ms is enough to fire the alert — no latency change required.
 
-Read the current row. You should see `750`:
+Read the current row using either shell. You should see `750`:
 
 ```bash
-docker exec otel-observability-postgres psql -U drasi_user -d otel_observability -c \
-  "SELECT service_name, metric_name, threshold_ms FROM service_slo_policy;"
+docker exec otel-observability-postgres psql -U drasi_user -d otel_observability -c "SELECT service_name, metric_name, threshold_ms FROM service_slo_policy;"
 ```
 
 Tighten the policy below the live p99. After five seconds (`trueFor`) **slo-alert** emits **Added**:
 
 ```bash
-docker exec otel-observability-postgres psql -U drasi_user -d otel_observability -c \
-  "UPDATE service_slo_policy SET threshold_ms = 100 WHERE service_name = 'checkout' AND metric_name = 'latency_p99_ms';"
+docker exec otel-observability-postgres psql -U drasi_user -d otel_observability -c "UPDATE service_slo_policy SET threshold_ms = 100 WHERE service_name = 'checkout' AND metric_name = 'latency_p99_ms';"
 ```
 
 Put the policy back above the live p99. The same alert row is **Removed**:
 
 ```bash
-docker exec otel-observability-postgres psql -U drasi_user -d otel_observability -c \
-  "UPDATE service_slo_policy SET threshold_ms = 750 WHERE service_name = 'checkout' AND metric_name = 'latency_p99_ms';"
+docker exec otel-observability-postgres psql -U drasi_user -d otel_observability -c "UPDATE service_slo_policy SET threshold_ms = 750 WHERE service_name = 'checkout' AND metric_name = 'latency_p99_ms';"
 ```
 
 Drasi never sees these commands — it only sees the row change through logical replication.
@@ -376,9 +375,28 @@ Same `app.py`; v41/v42 differ by `WORK_MS`. Each request is timed; the process e
 
 ### Plugin and server versions {#local-plugin}
 
-This tutorial pins **Drasi Server 0.2.2** (`scripts/download.sh`, override with `DRASI_SERVER_VERSION`) and **`source/otel:0.1.0`** from `ghcr.io/drasi-project`. First start downloads the signed cdylib into `bin/<os>-<arch>/plugins` (host and the Linux dev container keep separate trees so a Mac bind-mount cannot exec a Darwin binary).
+This tutorial pairs **Drasi Server 0.2.2** with these signed plugins from `ghcr.io/drasi-project`:
 
-`0.2.0-preview` is plugin-sdk 0.9 and cannot load this plugin. Re-run `bash scripts/download.sh` if you still have that binary.
+```yaml
+plugins:
+  - ref: source/postgres:0.2.10
+  - ref: bootstrap/postgres:0.2.13
+  - ref: source/kubernetes:0.1.7
+  - ref: bootstrap/kubernetes:0.1.7
+  - ref: source/otel:0.1.0
+  - ref: reaction/dashboard:0.1.5
+  - ref: reaction/log:0.2.7
+  # Optional Discord step:
+  # - ref: reaction/http:0.3.3
+```
+
+These binaries use FFI ABI **0.13**, matching the server. The SDK package version is a separate value and does not guarantee ABI compatibility. Do not remove individual version pins or override `DRASI_SERVER_VERSION` without checking the complete set.
+
+The Kubernetes plugins stay at **0.1.7** because **0.1.8** panics during TLS initialization on Linux arm64, even though its ABI matches.
+
+First start downloads the plugins into `bin/<os>-<arch>/plugins` on macOS and Linux, or `bin\plugins` on Windows. The generated `plugins.lock` records the resolved OCI digests and file hashes. Keep it with startup logs when reporting a compatibility failure.
+
+Host and dev-container downloads use separate directories. After updating an existing checkout, re-run the download script to replace the server and clear its default plugin cache. If you set `DRASI_PLUGINS_DIR`, use an empty directory. Server 0.2.2 can reuse cached binaries even when the configured version pins change.
 
 ## Optional: Discord Alerts {#discord}
 
@@ -405,9 +423,9 @@ Open `server-config.yaml` and **uncomment** two things (remove the leading `# ` 
 1. The HTTP reaction plugin in the `plugins:` list:
 
    ```yaml
-   - ref: reaction/dashboard
-   - ref: reaction/log
-   - ref: reaction/http        # uncomment this line
+   - ref: reaction/dashboard:0.1.5
+   - ref: reaction/log:0.2.7
+   - ref: reaction/http:0.3.3   # uncomment this line
    ```
 
 2. The `discord-alerts` reaction block at the bottom of `reactions:`. It subscribes to `slo-alert` and `missing-heartbeat` and posts when a row is **Added** or **Removed**:
@@ -461,7 +479,7 @@ powershell -ExecutionPolicy Bypass -File scripts/start-server.ps1
 {{< /tab >}}
 {{< /tabpane >}}
 
-On this start, Drasi Server installs `reaction/http` and brings up `discord-alerts` next to the dashboard.
+On this start, Drasi Server installs `reaction/http:0.3.3` and brings up `discord-alerts` next to the dashboard.
 
 From **Terminal 2**, drive a change and watch the channel:
 
