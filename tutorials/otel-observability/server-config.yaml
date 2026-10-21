@@ -27,20 +27,20 @@ port: ${SERVER_PORT:-8380}
 logLevel: "${LOG_LEVEL:-info}"
 persistConfig: false
 
-# Plugins auto-install from ghcr.io/drasi-project. Pin source/otel to the
-# published 0.1.0 (plugin-sdk 0.11, signed). Pair with Drasi Server 0.2.2.
+# Keep the complete plugin set paired with Drasi Server 0.2.2 (FFI ABI 0.13).
+# SDK package versions alone do not establish binary compatibility.
 autoInstallPlugins: true
 verifyPlugins: true
 plugins:
-  - ref: source/postgres
-  - ref: bootstrap/postgres
-  - ref: source/kubernetes
-  - ref: bootstrap/kubernetes
+  - ref: source/postgres:0.2.10
+  - ref: bootstrap/postgres:0.2.13
+  - ref: source/kubernetes:0.1.7
+  - ref: bootstrap/kubernetes:0.1.7
   - ref: source/otel:0.1.0
   - ref: reaction/dashboard:0.1.5
-  - ref: reaction/log
+  - ref: reaction/log:0.2.7
   # Optional (Discord alerts step): uncomment to enable the HTTP reaction below.
-  # - ref: reaction/http
+  # - ref: reaction/http:0.3.3
 
 # =============================================================================
 # Sources
@@ -437,7 +437,7 @@ reactions:
   # Optional: Discord alerts (HTTP reaction)
   # ===========================================================================
   # Posts when slo-alert or missing-heartbeat is Added or Removed. To enable:
-  #   1. Uncomment `- ref: reaction/http` in the plugins list above.
+  #   1. Uncomment `- ref: reaction/http:0.3.3` in the plugins list above.
   #   2. Uncomment this reaction block (remove the leading "# " on each line).
   #   3. Set DISCORD_WEBHOOK_URL and restart the server.
   # See "Optional: Discord Alerts" in the tutorial for the walkthrough.

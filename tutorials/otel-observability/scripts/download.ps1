@@ -3,7 +3,7 @@
 
 $ErrorActionPreference = "Stop"
 
-# Pin Drasi Server. 0.2.2 ships plugin-sdk 0.11, which loads source/otel 0.1.0.
+# Drasi Server 0.2.2 uses FFI ABI 0.13, matching the pinned server-config.yaml plugins.
 $ServerVersion = if ($env:DRASI_SERVER_VERSION) { $env:DRASI_SERVER_VERSION } else { "0.2.2" }
 $RepoUrl = "https://github.com/drasi-project/drasi-server/releases/download/$ServerVersion"
 $InstallDir = "bin"
