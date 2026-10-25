@@ -14,7 +14,7 @@ This tutorial builds a **Building Comfort** monitoring demo on **Drasi Server**.
 
 | Step | What You'll Do | Time |
 | ---- | ------------- | ---- |
-| **[Step 1: Set Up Your Environment](#step-1-of-4-set-up-your-environment)** | Open the dev container (or install Drasi Server locally) | 5 min |
+| **[Step 1: Set Up Your Environment](#step-1-of-4-set-up-your-environment)** | Build matching Server and plugin binaries from the existing checkouts | Depends on build cache |
 | **[Step 2: Run the Demo](#step-2-of-4-run-the-demo)** | One command starts PostgreSQL and Drasi Server | 3 min |
 | **[Step 3: Open the Dashboard](#step-3-of-4-open-the-dashboard)** | Watch comfort levels and alerts live | 2 min |
 | **[Step 4: Drive Change](#step-4-of-4-drive-change)** | Break, reset, and simulate rooms — and watch Drasi react instantly | 5 min |
@@ -24,99 +24,134 @@ This tutorial builds a **Building Comfort** monitoring demo on **Drasi Server**.
 >
 > - **Terminals:** you'll use two. **Terminal 1** runs the demo (it stays in the foreground). Use **Terminal 2** for the helper scripts that change data.
 > - **Working directory:** run every command from the tutorial directory (`tutorials/building-comfort/`). The dev container opens there automatically; if you're running locally, `cd tutorials/building-comfort` first.
-> - **Command tabs:** commands are shown in tabs (*bash / zsh* and *PowerShell*) — use the one for your shell. The dev container and Codespaces use *bash*.
+> - **Platform:** use macOS, Linux, or WSL with Python 3.11 or newer. All commands below use the same Python helper; there are no separate shell-specific implementations.
 > - **Ports:** the Drasi Server API is on `8380`, the dashboard is on `3000`, and PostgreSQL is published on `5732`.
+> - **Runtime:** this tutorial builds the ComputationGraph version of Drasi Server, not a published Server release. Other tutorials have not necessarily been migrated.
 
 ## Step 1 of 4: Set Up Your Environment
-The easiest way to follow this tutorial is the **dev container**, which installs everything for you. You can also run locally if you prefer.
+### Use the existing source checkouts
 
-### Option A: Dev Container or GitHub Codespaces (recommended)
+Keep these repositories beside one another, on their matching
+`agentofreality-parallel-computation-graph` branches:
 
-1. Open the [`learning-drasi-server`](https://github.com/drasi-project/learning-drasi-server) repository in VS Code and run **Reopen in Container** (or create a **Codespace** from the repo's **Code** menu).
-2. When prompted for a configuration, choose **Drasi Server - Building Comfort Tutorial**.
-3. Wait for the container to finish. Its setup script downloads the Drasi Server binary and installs the PostgreSQL client.
+```text
+workspace/
+  drasi-core/
+  drasi-server/
+  learning-drasi-server/
+```
 
-That's it — skip ahead to [Step 2](#step-2-of-4-run-the-demo).
+The build helper does not clone repositories, switch branches, download released
+Drasi binaries, or change dependencies. Server must reference `../drasi-core/lib`
+in its Cargo manifest. The ordinary PostgreSQL and reaction interfaces remain
+supported: they run inside ComputationGraph without requiring native graph YAML.
 
-### Option B: Run Locally
+For a local build, install Python 3.11+, Rust through rustup, a C/C++ compiler,
+CMake, Clang/libclang, pkg-config, jq with its development library, OpenSSL
+development files, and `protoc`. Use a Rust toolchain supported by the matching
+checkouts; this tutorial's qualification uses **Rust 1.95.0**. PostgreSQL runs in
+**Podman with a Compose provider**. Start the Podman machine first on macOS.
+Docker Compose is also supported when you explicitly set `CONTAINER_ENGINE=docker`.
 
-You'll need **Docker** (for PostgreSQL) and **bash** (the helper scripts use it; on Windows use Git Bash or WSL). From the repository root, move into the tutorial directory and download the Drasi Server binary:
+On Debian/Ubuntu the native prerequisites are:
 
-**bash / zsh**
+```bash
+sudo apt-get install build-essential cmake clang libclang-dev pkg-config \
+  libjq-dev libssl-dev protobuf-compiler python3
+```
+
+On macOS, use the Xcode command-line tools and Homebrew's `cmake`, `llvm`,
+`pkg-config`, `jq`, `openssl@3`, and `protobuf`. If linking cannot locate jq, set
+`JQ_LIB_DIR="$(brew --prefix jq)/lib"` and `LIBRARY_PATH` to that directory.
+Do not enable bundled jq or build the entire workspace with `--all-features`.
+
+From `learning-drasi-server/`:
 
 ```bash
 cd tutorials/building-comfort
-bash scripts/download.sh
+RUSTUP_TOOLCHAIN=1.95.0 python3 scripts/demo.py build
 ```
 
-**PowerShell**
+If the Core checkout has no workspace `Cargo.lock` yet, run
+`cargo generate-lockfile --manifest-path ../../../drasi-core/Cargo.toml`
+from the tutorial directory before building.
 
-```powershell
-cd tutorials/building-comfort
-powershell -ExecutionPolicy Bypass -File scripts/download.ps1
-```
+This builds Server and exactly four plugins from the sibling Core checkout:
+PostgreSQL source, PostgreSQL bootstrap, dashboard reaction, and log reaction.
+It uses `drasi-server/target` by default, then copies a matching set into the
+tutorial's private `.runtime/builds/` directory. `.runtime/build.json` records
+repository revisions, working-tree status, compiler version, and artifact hashes.
+Rebuild after changing Server or Core.
 
-This places the binary at `bin/drasi-server` (or `bin\drasi-server.exe` on Windows) inside the tutorial directory.
+The dashboard's web assets are embedded in its plugin. This tutorial does not
+require the separate Server management UI or a Node.js build.
 
-### Option C: Build from Source
+### Optional local dev container
 
-Prefer to compile Drasi Server yourself? Follow the [**Build from Source**](https://drasi.io/drasi-server/how-to-guides/installation/build-from-source/) installation guide to clone the repository and build the binary.
+Open this repository in VS Code, choose **Reopen in Container**, and select
+**Drasi Server - Building Comfort Tutorial**. Keep all three checkouts present
+first: this configuration mounts their parent directory and installs the build
+prerequisites. Its post-create script runs the same local build, with a
+container-specific Cargo target directory.
 
-Once it is built, make the `drasi-server` binary available to this tutorial's helper scripts — either add it to your `PATH`, or copy it into this tutorial's `bin/` directory (the same location [Option B](#step-1-of-4-set-up-your-environment) uses):
+This source-based setup is **not a one-click Codespaces or release-ZIP setup**.
+Those environments need the matching Core and Server checkouts too. The former
+`0.2.0-preview` downloads are deliberately no longer offered for this tutorial.
 
-**bash / zsh**
+### Optional settings
 
-```bash
-cd tutorials/building-comfort
-mkdir -p bin
-cp /path/to/drasi-server/bin/drasi-server bin/drasi-server
-```
+Copy `.env.example` to `.env` to change ports or select Docker. The helper reads
+literal `NAME=value` entries; exported variables take precedence. Change
+`POSTGRES_PORT` and `POSTGRES_HOST_PORT` together. Services bind to loopback by
+default; do not expose the demo credentials or dashboard publicly.
 
-**PowerShell**
-
-```powershell
-cd tutorials/building-comfort
-New-Item -ItemType Directory -Force bin | Out-Null
-Copy-Item C:\path\to\drasi-server\bin\drasi-server.exe bin\drasi-server.exe
-```
+The new database uses the `building-comfort-cg` Compose project. It does not
+reuse or delete the old tutorial's database. Server writes its local runtime
+files under `.runtime/`, not the former `data/` directory.
 
 ## Step 2 of 4: Run the Demo
 Everything runs from a single configuration file, `server-config.yaml`. In **Terminal 1**, start the demo:
 
-**bash / zsh**
-
 ```bash
-bash scripts/start-demo.sh
+python3 scripts/demo.py start-demo
 ```
 
-**PowerShell**
+The helper verifies the local artifact hashes before touching the database.
+It starts PostgreSQL, seeds an empty database with one building, three floors,
+and nine comfortable rooms, and runs Server in the foreground. Repeating the
+command preserves existing database contents; it does not drop tables or volumes.
 
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/start-demo.ps1
-```
+Server loads only the four prepared local plugins. `autoInstallPlugins: false`
+prevents release downloads. The helper passes `--skip-verification` specifically
+for these locally built, hash-checked plugins, which do not have registry
+signatures. It does not change global plugin-verification settings or use the
+global plugin cache.
 
-The `start-demo` script does two things: it starts PostgreSQL (seeding one building, three floors, and nine rooms — every room comfortable to begin with) and then runs Drasi Server in the foreground.
-
-On first start, Drasi Server downloads the plugins it needs (`source/postgres`, `bootstrap/postgres`, `reaction/dashboard`, `reaction/log`) from `ghcr.io/drasi-project` and caches them under `~/.drasi/plugins`, connects to the database, and starts the six continuous queries and the dashboard. When you see a line like the following, it's ready:
+Wait for the helper's readiness message, not merely the API-started log line:
 
 ```text
-Drasi Server started successfully with API on port 8380
+Building Comfort READY: ComputationGraph; source, six queries and two reactions running.
 ```
 
 Leave this running. Everything else happens from **Terminal 2** (or your browser).
 
 > **Stopping and resetting**
 >
-> Press **Ctrl+C** in Terminal 1 to stop the server. To remove the database container when you're completely done, run `bash scripts/cleanup.sh` (bash) or `powershell -ExecutionPolicy Bypass -File scripts/cleanup.ps1` (PowerShell). Add `--volumes` (bash) or `-RemoveVolumes` (PowerShell) to also delete the data.
+> Press **Ctrl+C** in Terminal 1 to stop Server. To stop PostgreSQL while preserving
+> its data, run `python3 scripts/demo.py cleanup`. Add `--volumes` only when you
+> intend to delete this demo's database. No command kills other Server processes.
 
 ## Step 3 of 4: Open the Dashboard
-Drasi Server's dashboard reaction hosts a live web dashboard — there's no separate app to build or run. **Wait until Terminal 1 prints `Drasi Server started successfully`** (on the first run this takes ~30 seconds while the plugins download), then open it in your browser:
+Drasi Server's dashboard reaction hosts a live web dashboard — there's no separate
+app to build or run. After the **Building Comfort READY** message, open:
 
 ```text
 http://localhost:3000
 ```
 
-In the dev container or Codespaces, port `3000` is forwarded automatically — VS Code shows a notification when the dashboard is ready, and you can also open it from the **Ports** panel (the **Comfort Dashboard** entry). If you open the page before the server has finished starting, just refresh once it's ready.
+In the local dev container, port `3000` is forwarded automatically and appears
+as **Comfort Dashboard** in VS Code's **Ports** panel. Select the predefined
+**Building Comfort** dashboard if the dashboard list is shown first.
 
 You'll see the **Building Comfort** dashboard:
 
@@ -132,44 +167,34 @@ With Terminal 1 running the demo and the dashboard open, use **Terminal 2** to c
 
 > **No middle tier — the scripts just write to the database**
 >
-> The helper scripts below don't talk to Drasi Server at all. Each one runs a plain SQL `UPDATE` against PostgreSQL — exactly what an existing building-management app would already do. There's no API to call, no event to publish, and no application code in the loop. Drasi observes the row change through PostgreSQL's logical replication (CDC), re-evaluates the affected queries, and updates the dashboard on its own. The **PowerShell** tabs make this obvious — they're just raw `psql` `UPDATE` statements, and the **bash** scripts wrap the same SQL.
+> The data-changing commands below run ordinary SQL `UPDATE` statements against
+> PostgreSQL. They do not call Server or publish artificial query results. Drasi
+> observes those changes through logical replication, updates the queries, and
+> sends result changes to the dashboard.
 
 ### Break a room
 
 Push a single room out of the comfortable band (sets `temperature = 40`, `humidity = 20`, `co2 = 700`):
 
-**bash / zsh**
-
 ```bash
-bash scripts/break-room.sh room_01_01_01
+python3 scripts/demo.py break-room room_01_01_01
 ```
 
-**PowerShell**
-
-```powershell
-docker exec building-comfort-postgres psql -U drasi_user -d building_comfort -c "UPDATE \"Room\" SET temperature=40, humidity=20, co2=700 WHERE id='room_01_01_01';"
-```
-
-Within about a second the dashboard reacts: **Room 01** on **Floor 01** drops out of the comfortable band, the building gauge falls, and entries appear in **Comfort Alerts** and **Floor Alerts**. The server console (Terminal 1) logs the alerts too.
+**Room 01** on **Floor 01** changes from comfort `46` to `4`, and its label
+becomes blue (too cold). Floor 01 becomes `32`, and building comfort becomes
+approximately `41.3333`. Room and floor alerts appear, but **no building alert**
+appears: the building average is still within 40-50. Terminal 1 logs the alerts.
 
 ### Reset a room (or all rooms)
 
 Return a room — or the whole building — to comfortable defaults (`70 / 40 / 10`):
 
-**bash / zsh**
-
 ```bash
 # Reset one room
-bash scripts/reset-room.sh room_01_01_01
+python3 scripts/demo.py reset-room room_01_01_01
 
 # Reset every room
-bash scripts/reset-room.sh
-```
-
-**PowerShell**
-
-```powershell
-docker exec building-comfort-postgres psql -U drasi_user -d building_comfort -c "UPDATE \"Room\" SET temperature=70, humidity=40, co2=10 WHERE id='room_01_01_01';"
+python3 scripts/demo.py reset-room
 ```
 
 The alerts clear and the building returns to green.
@@ -178,39 +203,51 @@ The alerts clear and the building returns to green.
 
 Try partial degradation — make a room too hot without touching CO2:
 
-**bash / zsh**
+```bash
+# set-room <room_id> <temperature> <humidity> <co2>
+python3 scripts/demo.py set-room room_01_02_03 82 40 10
+```
+
+Starting with the other rooms reset, this gives room comfort `58`, floor comfort
+`50`, and building comfort approximately `47.3333`. **Only the room alerts**:
+the floor is exactly on the comfortable upper boundary.
+
+To see a building alert too, reset everything and break two rooms:
 
 ```bash
-# set-room.sh <room_id> <temperature> <humidity> <co2>
-bash scripts/set-room.sh room_01_02_03 82 40 10
+python3 scripts/demo.py reset-room
+python3 scripts/demo.py break-room room_01_01_01
+python3 scripts/demo.py break-room room_01_01_02
 ```
 
-**PowerShell**
-
-```powershell
-docker exec building-comfort-postgres psql -U drasi_user -d building_comfort -c "UPDATE \"Room\" SET temperature=82, humidity=40, co2=10 WHERE id='room_01_02_03';"
-```
-
-That gives `50 + (82-72) + (40-42) + 0 = 58` — above 50, so the room and its floor raise alerts even though humidity and CO2 are fine.
+Floor 01 becomes `18`, and building comfort becomes approximately `36.6667`.
+All three kinds of alert now have results. Reset all rooms to clear them.
 
 ### Let it run hands-free
 
 To keep the dashboard alive without typing, run the simulator. It picks a random room every few seconds and assigns new readings, so comfort levels rise and fall and alerts come and go on their own:
 
-**bash / zsh**
-
 ```bash
-bash scripts/simulate.sh
+python3 scripts/demo.py simulate
+
+# Or make just three changes, one second apart:
+python3 scripts/demo.py simulate 1 --count 3
 ```
 
-**PowerShell**
+Press **Ctrl+C** to stop the simulator, then run `python3 scripts/demo.py reset-room`.
+Reset-all sends a single multi-row SQL update; every changed room must reach the
+queries and dashboard.
 
-```powershell
-# The simulator is a bash script; run it from Git Bash or WSL:
-bash scripts/simulate.sh
-```
+### Stop and restart without losing your source data
 
-Press **Ctrl+C** to stop the simulator, then `reset-room.sh` to return everything to comfortable.
+Set a room to an uncomfortable value, stop Server with Ctrl+C, and run
+`python3 scripts/demo.py start-demo` again. PostgreSQL retains your readings.
+The memory-backed queries bootstrap from those current rows, and the dashboard
+returns to the same state. Layout edits and query/API changes are not persisted
+by this tutorial configuration.
+
+This is a normal restart and fresh bootstrap, **not** a claim of durable query
+indexes, crash-safe browser delivery, or exactly-once external effects.
 
 ## How It Works
 Everything you just ran is described by the single `server-config.yaml`. Here's what each part does.
@@ -386,20 +423,31 @@ And the reaction renders it live:
 
 <img src="images/dashboard-building-view.png" width="820" alt="The Building Comfort widget: rooms grouped by floor, each tagged with a comfort level and a green, red, or blue status emoji">
 
-### Build a Custom UI with the SSE Reaction
+### Where ComputationGraph fits
 
-Prefer to build your own front end? The dashboard reaction is the fastest way to *see* a query, but Drasi Server can drive a fully custom UI just as easily through the **SSE reaction** (`kind: sse`). It streams the same query changes to the browser over [Server-Sent Events](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events), so any web app can subscribe with a few lines of JavaScript and render the results however you like:
+The named instance `building-comfort-server` owns one ComputationGraph. Its
+PostgreSQL source supplies all six query transformers; the dashboard and log
+reactions consume their result changes. The ordinary configuration interfaces
+are adapters into that graph, not a second execution engine.
 
-```js
-const events = new EventSource("http://localhost:8081/events");
-events.onmessage = (e) => {
-  const { queryId, results } = JSON.parse(e.data);
-  // Each result carries `before` and `after`; update your UI from `after`.
-  for (const change of results) render(queryId, change.after);
-};
+You do not need an `executionMode` field, an enablement flag, explicit ports and
+pipes, or a rewrite of the comfort formula to use this runtime.
+
+Check the running components at any time:
+
+```bash
+python3 scripts/demo.py check
 ```
 
-Because the reaction pushes only what *changed* — never the full result set — your UI stays live without polling, powered by the same engine behind this dashboard but with complete control over the markup. The [Getting Started tutorial](../getting-started/) wires up the SSE reaction step by step, and the [Configure the SSE Reaction](https://drasi.io/drasi-server/how-to-guides/configuration/configure-reactions/configure-sse-reaction/) guide documents its full configuration.
+The check requires the selected instance to report `runtime: "computationGraph"`
+and `running: true`, with the source, all six queries and both reactions running,
+and the predefined dashboard available. It is a readiness check, not proof that
+every input has finished processing.
+
+To compare every query and dashboard snapshot with the current PostgreSQL rows
+without modifying data, run `python3 scripts/verify_demo.py`. The
+[migration notes](migration.md) also describe the repeatable, data-changing
+acceptance exercises.
 
 > **Inspect the queries directly (optional)**
 >
@@ -413,25 +461,22 @@ Because the reaction pushes only what *changed* — never the full result set �
 ## Clean Up
 When you're finished, stop Drasi Server with **Ctrl+C** in Terminal 1, then remove the database container:
 
-**bash / zsh**
-
 ```bash
 # Stop containers, keep data
-bash scripts/cleanup.sh
+python3 scripts/demo.py cleanup
 
-# Stop containers and delete the data volume
-bash scripts/cleanup.sh --volumes
+# Only when you intend to delete this demo's database:
+python3 scripts/demo.py cleanup --volumes
 ```
 
-**PowerShell**
+Cleanup checks this tutorial's ownership labels and never kills processes by
+name. The old tutorial's containers, volumes and files are not touched. Local
+builds and the build record remain available for another run.
 
-```powershell
-# Stop containers, keep data
-powershell -ExecutionPolicy Bypass -File scripts/cleanup.ps1
-
-# Stop containers and delete the data volume
-powershell -ExecutionPolicy Bypass -File scripts/cleanup.ps1 -RemoveVolumes
-```
+## Migration Notes
+See [Migrating Building Comfort to ComputationGraph](migration.md) for the exact
+runtime, plugin, configuration, helper and documentation changes, what stayed
+the same, and the acceptance checks used for this tutorial.
 
 ## What You Learned
 - **Sources** connect Drasi Server to live data — here, PostgreSQL via Change Data Capture.

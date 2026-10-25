@@ -7,12 +7,16 @@
             "moby": false
         },
         "ghcr.io/devcontainers/features/git:1": {},
+        "ghcr.io/devcontainers/features/rust:1": {
+            "version": "1.95.0"
+        },
         "ghcr.io/devcontainers/features/common-utils:2": {
             "installZsh": true,
             "configureZshAsDefaultShell": true
         }
     },
     "postCreateCommand": "bash ../../.devcontainer/building-comfort/post-create.sh",
+    "workspaceMount": "source=${localWorkspaceFolder}/..,target=/workspaces,type=bind",
     "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}/tutorials/building-comfort",
     "runArgs": [
         "--privileged",
@@ -53,6 +57,11 @@
         "LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}"
     },
     "containerEnv": {
+        "CONTAINER_ENGINE": "docker",
+        "CARGO_TARGET_DIR": "/home/vscode/.cache/drasi-building-comfort/target",
+        "CARGO_BUILD_JOBS": "2",
+        "CARGO_INCREMENTAL": "0",
+        "CARGO_PROFILE_DEV_DEBUG": "0",
         "POSTGRES_HOST": "localhost",
         "POSTGRES_PORT": "5732",
         "POSTGRES_HOST_PORT": "5732",

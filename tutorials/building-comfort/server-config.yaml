@@ -24,19 +24,14 @@
 # =============================================================================
 
 apiVersion: drasi.io/v1
-host: "${SERVER_HOST:-0.0.0.0}"
+host: "${SERVER_HOST:-127.0.0.1}"
 port: ${SERVER_PORT:-8380}
 logLevel: "${LOG_LEVEL:-info}"
 persistConfig: false
 
-# Plugins are downloaded from the OCI registry (ghcr.io/drasi-project) on first
-# startup. No manual build step is required.
-autoInstallPlugins: true
-plugins:
-  - ref: source/postgres
-  - ref: bootstrap/postgres
-  - ref: reaction/dashboard
-  - ref: reaction/log
+# scripts/demo.py builds and supplies exactly four matching local plugins.
+# Never mix these development artifacts with downloaded release plugins.
+autoInstallPlugins: false
 
 # =============================================================================
 # Sources
@@ -140,10 +135,10 @@ instances:
           MATCH
             (r:Room)-[:PART_OF_FLOOR]->(f:Floor)-[:PART_OF_BUILDING]->(b:Building)
           WITH
-            b,
+            f, b,
             floor( 50 + (r.temperature - 72) + (r.humidity - 42) + CASE WHEN r.co2 > 500 THEN (r.co2 - 500) / 25 ELSE 0 END ) AS RoomComfortLevel
           WITH
-            b,
+            f, b,
             avg(RoomComfortLevel) AS FloorComfortLevel
           WITH
             b,
@@ -311,7 +306,7 @@ instances:
           - room-alert
           - floor-alert
           - building-alert
-        host: "${DASHBOARD_HOST:-0.0.0.0}"
+        host: "${DASHBOARD_HOST:-127.0.0.1}"
         port: ${DASHBOARD_PORT:-3000}
         heartbeatIntervalMs: 15000
         predefinedDashboards:
@@ -340,18 +335,15 @@ instances:
 
                     {{/groupBy}}
 
-          # Overall building comfort as a single number. Computed as the
-          # average of every room's comfort level (mathematically the same as
-          # the building-comfort-level-calc rollup, but read from the clean
-          # per-room query so the KPI is a single stable value).
+          # Read the building rollup directly, including unequal floor sizes.
               - id: building-kpi
                 type: kpi
                 title: Building Comfort
                 grid: {x: 8, y: 0, w: 4, h: 2}
                 config:
-                  queryId: building-comfort-ui
+                  queryId: building-comfort-level-calc
                   valueField: ComfortLevel
-                  aggregation: avg
+                  aggregation: last
                   label: Comfort Level
 
           # Overall building comfort on a gauge (good band is 40-50).
@@ -360,9 +352,9 @@ instances:
                 title: Building Comfort Gauge
                 grid: {x: 8, y: 2, w: 4, h: 4}
                 config:
-                  queryId: building-comfort-ui
+                  queryId: building-comfort-level-calc
                   valueField: ComfortLevel
-                  aggregation: avg
+                  aggregation: last
                   min: 0
                   max: 100
 

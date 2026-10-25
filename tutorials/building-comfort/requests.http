@@ -20,6 +20,7 @@
 
 @baseUrl = http://localhost:8380
 @dashboardUrl = http://localhost:3000
+@instanceUrl = {{baseUrl}}/api/v1/instances/building-comfort-server
 
 ### ==========================================================================
 ### Health & Info
@@ -31,50 +32,53 @@ GET {{baseUrl}}/health
 ### List API versions
 GET {{baseUrl}}/api/versions
 
+### Confirm the selected instance uses ComputationGraph
+GET {{instanceUrl}}/runtime
+
 ### ==========================================================================
 ### Sources
 ### ==========================================================================
 
 ### List all sources
-GET {{baseUrl}}/api/v1/sources
+GET {{instanceUrl}}/sources
 
 ### Get the building-facilities source status
-GET {{baseUrl}}/api/v1/sources/building-facilities
+GET {{instanceUrl}}/sources/building-facilities
 
 ### ==========================================================================
 ### Continuous Queries
 ### ==========================================================================
 
 ### List all queries
-GET {{baseUrl}}/api/v1/queries
+GET {{instanceUrl}}/queries
 
 ### Per-room comfort levels (the building view feed)
-GET {{baseUrl}}/api/v1/queries/building-comfort-ui/results
+GET {{instanceUrl}}/queries/building-comfort-ui/results
 
 ### Overall building comfort level
-GET {{baseUrl}}/api/v1/queries/building-comfort-level-calc/results
+GET {{instanceUrl}}/queries/building-comfort-level-calc/results
 
 ### Per-floor comfort levels
-GET {{baseUrl}}/api/v1/queries/floor-comfort-level-calc/results
+GET {{instanceUrl}}/queries/floor-comfort-level-calc/results
 
 ### Rooms outside the comfortable band (alerts)
-GET {{baseUrl}}/api/v1/queries/room-alert/results
+GET {{instanceUrl}}/queries/room-alert/results
 
 ### Floors outside the comfortable band (alerts)
-GET {{baseUrl}}/api/v1/queries/floor-alert/results
+GET {{instanceUrl}}/queries/floor-alert/results
 
 ### Building outside the comfortable band (alert)
-GET {{baseUrl}}/api/v1/queries/building-alert/results
+GET {{instanceUrl}}/queries/building-alert/results
 
 ### ==========================================================================
 ### Reactions
 ### ==========================================================================
 
 ### List all reactions
-GET {{baseUrl}}/api/v1/reactions
+GET {{instanceUrl}}/reactions
 
 ### Get the dashboard reaction status
-GET {{baseUrl}}/api/v1/reactions/building-comfort-dashboard
+GET {{instanceUrl}}/reactions/building-comfort-dashboard
 
 ### Open the dashboard in a browser instead: {{dashboardUrl}}
 ### The seeded "Building Comfort" dashboard is available via the dashboard API:

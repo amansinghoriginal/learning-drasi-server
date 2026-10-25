@@ -12,12 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: building-comfort
+name: ${COMPOSE_PROJECT_NAME:-building-comfort-cg}
 
 services:
   postgres:
-    image: postgres:14-alpine
-    container_name: building-comfort-postgres
+    image: docker.io/library/postgres:14-alpine
+    container_name: ${COMPOSE_PROJECT_NAME:-building-comfort-cg}-postgres
+    labels:
+      io.drasi.building-comfort.path: "${DRASI_TUTORIAL_DIR:-unmanaged}"
     environment:
       POSTGRES_DB: building_comfort
       POSTGRES_USER: postgres
@@ -31,7 +33,7 @@ services:
       - "-c"
       - "max_wal_senders=10"
     ports:
-      - "${POSTGRES_HOST_PORT:-5732}:5432"
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5732}:5432"
     volumes:
       - building_comfort_postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -42,3 +44,5 @@ services:
 
 volumes:
   building_comfort_postgres_data:
+    labels:
+      io.drasi.building-comfort.path: "${DRASI_TUTORIAL_DIR:-unmanaged}"

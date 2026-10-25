@@ -7,10 +7,16 @@ Hands-on tutorials for [Drasi Server](https://github.com/drasi-project/drasi-ser
 | Tutorial | What you learn | How to trigger it |
 | --- | --- | --- |
 | [getting-started](tutorials/getting-started) | Official Drasi Server getting-started flow (PostgreSQL CDC, queries, log + SSE reactions) | Open the **Drasi Server - Getting Started Tutorial** dev container (or a Codespace) and follow [tutorials/getting-started](tutorials/getting-started) |
-| [building-comfort](tutorials/building-comfort) | Smart-building comfort monitoring (PostgreSQL CDC, six comfort/alert queries with synthetic joins, the dashboard reaction) | Open the **Drasi Server - Building Comfort Tutorial** dev container and follow [tutorials/building-comfort](tutorials/building-comfort) |
+| [building-comfort](tutorials/building-comfort) | ComputationGraph-based Server with PostgreSQL CDC, six comfort/alert queries, synthetic joins and a dashboard | Build the matching local Server/Core checkouts using [tutorials/building-comfort](tutorials/building-comfort); see its [migration notes](tutorials/building-comfort/migration.md) |
 | [otel-observability](tutorials/otel-observability) | Correlate Kubernetes rollouts, OTel health, and a PostgreSQL SLO policy (native OTel source, Collector, dashboard) | Open the **Drasi Server - OTel Observability Tutorial** dev container and follow [tutorials/otel-observability](tutorials/otel-observability) |
 
 See [tutorials](tutorials) for the full list of tutorials.
+
+**ComputationGraph migration:** Building Comfort uses existing sibling
+`drasi-server/` and `drasi-core/` checkouts rather than released Server/plugin
+downloads. Its local dev container mounts that parent directory and builds the
+same sources. This requirement does not change the setup of the other tutorials;
+their migration is separate work.
 
 ## Run in a Dev Container
 
@@ -20,8 +26,9 @@ From the repository root:
 2. Run Reopen in Container.
 3. When prompted, choose a configuration:
 	- **Drasi Server - Getting Started Tutorial** — opens [tutorials/getting-started](tutorials/getting-started).
-	- **Drasi Server - Building Comfort Tutorial** — installs everything for
-	  [tutorials/building-comfort](tutorials/building-comfort) (PostgreSQL client + Drasi Server binary).
+	- **Drasi Server - Building Comfort Tutorial** — requires the sibling Core
+	  and Server checkouts; installs build prerequisites and compiles matching
+	  local binaries for [tutorials/building-comfort](tutorials/building-comfort).
 	- **Drasi Server - OTel Observability Tutorial** — installs everything for
 	  [tutorials/otel-observability](tutorials/otel-observability) (k3d, kubectl, PostgreSQL client, mock store images).
 4. Follow the README in the matching tutorial folder.
@@ -82,8 +89,9 @@ python3 scripts/render-tutorials.py --check   # fail if any are stale (CI check)
 
 `scripts/tutorial-runtime.py` runs the published tutorial infrastructure without
 reusing the normal tutorial container names, volumes, ports, or Kubernetes
-context. It is an optional development path; the normal tutorial commands and
-downloaded releases remain unchanged. It requires Python 3, working Docker
+context. It is an optional development path; Building Comfort now also has its
+own source-based setup, while other tutorials retain their existing setup.
+It requires Python 3, working Docker
 Compose, and a **ComputationGraph-only** Drasi Server build with matching local plugin
 artifacts. High Risk Containers additionally needs `kubectl` and `k3d`.
 
