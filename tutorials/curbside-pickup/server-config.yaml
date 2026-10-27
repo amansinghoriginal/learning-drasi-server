@@ -150,8 +150,8 @@ instances:
       - id: orders-preparing
         autoStart: true
         queryLanguage: Cypher
-        sources:
-          - sourceId: retail-ops
+        inputs:
+          - component: retail-ops
             nodes:
               - orders
         query: |
@@ -170,8 +170,8 @@ instances:
       - id: orders-ready
         autoStart: true
         queryLanguage: Cypher
-        sources:
-          - sourceId: retail-ops
+        inputs:
+          - component: retail-ops
             nodes:
               - orders
         query: |
@@ -192,8 +192,8 @@ instances:
       - id: vehicles-parking
         autoStart: true
         queryLanguage: Cypher
-        sources:
-          - sourceId: physical-ops
+        inputs:
+          - component: physical-ops
             nodes:
               - vehicles
         query: |
@@ -212,8 +212,8 @@ instances:
       - id: vehicles-curbside
         autoStart: true
         queryLanguage: Cypher
-        sources:
-          - sourceId: physical-ops
+        inputs:
+          - component: physical-ops
             nodes:
               - vehicles
         query: |
@@ -232,11 +232,11 @@ instances:
       - id: delivery
         autoStart: true
         queryLanguage: Cypher
-        sources:
-          - sourceId: physical-ops
+        inputs:
+          - component: physical-ops
             nodes:
               - vehicles
-          - sourceId: retail-ops
+          - component: retail-ops
             nodes:
               - orders
         joins:
@@ -269,11 +269,11 @@ instances:
       - id: delay
         autoStart: true
         queryLanguage: Cypher
-        sources:
-          - sourceId: physical-ops
+        inputs:
+          - component: physical-ops
             nodes:
               - vehicles
-          - sourceId: retail-ops
+          - component: retail-ops
             nodes:
               - orders
         joins:

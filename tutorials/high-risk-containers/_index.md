@@ -273,13 +273,13 @@ middleware:
 The middleware is attached to the Kubernetes subscription with a `pipeline`, so every incoming Pod change is pre-processed before the query sees it:
 
 ```yaml
-sources:
-  - sourceId: k8s
+inputs:
+  - component: k8s
     nodes:
       - Pod
     pipeline:
       - extract-containers
-  - sourceId: devops
+  - component: devops
     nodes:
       - RiskyImage
 ```
@@ -325,14 +325,14 @@ queries:
     queryLanguage: Cypher
 
     # The sources this query subscribes to, and the labels it consumes from each.
-    sources:
-      - sourceId: k8s
+    inputs:
+      - component: k8s
         nodes:
           - Pod
         # Run incoming Pod changes through the unwind middleware.
         pipeline:
           - extract-containers
-      - sourceId: devops
+      - component: devops
         nodes:
           - RiskyImage
 

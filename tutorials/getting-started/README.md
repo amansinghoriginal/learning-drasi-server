@@ -186,8 +186,8 @@ The Continuous Query is at the heart of Drasi Server, so before running anything
 ```yaml
 - id: all-messages
   autoStart: true
-  sources:
-    - sourceId: my-postgres
+  inputs:
+    - my-postgres
   query: |
     MATCH (m:Message)
     RETURN m.MessageId AS MessageId, m.From AS From, m.Message AS Message
@@ -413,8 +413,8 @@ Here's how the new query would look in a Drasi Server config file:
 ```yaml
 - id: hello-world-senders
   autoStart: true
-  sources:
-    - sourceId: my-postgres
+  inputs:
+    - my-postgres
   query: |
     MATCH (m:Message) 
     WHERE m.Message = 'Hello World' 
@@ -442,7 +442,7 @@ curl -X POST http://localhost:8080/api/v1/instances/getting-started-server/queri
   -d '{
     "id": "hello-world-senders",
     "autoStart": true,
-    "sources": [{"sourceId": "my-postgres"}],
+    "inputs": ["my-postgres"],
     "query": "MATCH (m:Message) WHERE m.Message = '\''Hello World'\'' RETURN m.MessageId AS Id, m.From AS Sender",
     "queryLanguage": "Cypher"
   }'
@@ -456,7 +456,7 @@ Invoke-RestMethod -Method Post -Uri http://localhost:8080/api/v1/instances/getti
   -Body '{
     "id": "hello-world-senders",
     "autoStart": true,
-    "sources": [{"sourceId": "my-postgres"}],
+    "inputs": ["my-postgres"],
     "query": "MATCH (m:Message) WHERE m.Message = ''Hello World'' RETURN m.MessageId AS Id, m.From AS Sender",
     "queryLanguage": "Cypher"
   }'
@@ -616,8 +616,8 @@ Here's the new `message-counts` query as it would appear in a Drasi Server confi
 ```yaml
 - id: message-counts
   autoStart: true
-  sources:
-    - sourceId: my-postgres
+  inputs:
+    - my-postgres
   query: |
     MATCH (m:Message) 
     RETURN m.Message AS MessageText, count(m) AS Count
@@ -640,7 +640,7 @@ curl -X POST http://localhost:8080/api/v1/instances/getting-started-server/queri
   -d '{
     "id": "message-counts",
     "autoStart": true,
-    "sources": [{"sourceId": "my-postgres"}],
+    "inputs": ["my-postgres"],
     "query": "MATCH (m:Message) RETURN m.Message AS MessageText, count(m) AS Count",
     "queryLanguage": "Cypher"
   }'
@@ -654,7 +654,7 @@ Invoke-RestMethod -Method Post -Uri http://localhost:8080/api/v1/instances/getti
   -Body '{
     "id": "message-counts",
     "autoStart": true,
-    "sources": [{"sourceId": "my-postgres"}],
+    "inputs": ["my-postgres"],
     "query": "MATCH (m:Message) RETURN m.Message AS MessageText, count(m) AS Count",
     "queryLanguage": "Cypher"
   }'
@@ -839,8 +839,8 @@ Here's the new `inactive-senders` query as it would appear in a Drasi Server con
 ```yaml
 - id: inactive-senders
   autoStart: true
-  sources:
-    - sourceId: my-postgres
+  inputs:
+    - my-postgres
   query: |
     MATCH (m:Message) 
     WITH m.From AS MessageFrom, max(drasi.changeDateTime(m)) AS LastMessageTimestamp 
@@ -870,7 +870,7 @@ curl -X POST http://localhost:8080/api/v1/instances/getting-started-server/queri
   -d '{
     "id": "inactive-senders",
     "autoStart": true,
-    "sources": [{"sourceId": "my-postgres"}],
+    "inputs": ["my-postgres"],
     "query": "MATCH (m:Message) WITH m.From AS MessageFrom, max(drasi.changeDateTime(m)) AS LastMessageTimestamp WHERE LastMessageTimestamp <= datetime.realtime() - duration({ seconds: 20 }) OR drasi.trueLater(LastMessageTimestamp <= datetime.realtime() - duration({ seconds: 20 }), LastMessageTimestamp + duration({ seconds: 20 })) RETURN MessageFrom, LastMessageTimestamp",
     "queryLanguage": "Cypher"
   }'
@@ -884,7 +884,7 @@ Invoke-RestMethod -Method Post -Uri http://localhost:8080/api/v1/instances/getti
   -Body '{
     "id": "inactive-senders",
     "autoStart": true,
-    "sources": [{"sourceId": "my-postgres"}],
+    "inputs": ["my-postgres"],
     "query": "MATCH (m:Message) WITH m.From AS MessageFrom, max(drasi.changeDateTime(m)) AS LastMessageTimestamp WHERE LastMessageTimestamp <= datetime.realtime() - duration({ seconds: 20 }) OR drasi.trueLater(LastMessageTimestamp <= datetime.realtime() - duration({ seconds: 20 }), LastMessageTimestamp + duration({ seconds: 20 })) RETURN MessageFrom, LastMessageTimestamp",
     "queryLanguage": "Cypher"
   }'
@@ -1010,9 +1010,9 @@ Here's the new `messages-with-location` query as it would appear in a Drasi Serv
 ```yaml
 - id: messages-with-location
   autoStart: true
-  sources:
-    - sourceId: my-postgres
-    - sourceId: location-tracker
+  inputs:
+    - my-postgres
+    - location-tracker
   query: |
     MATCH (m:Message)-[:FROM_USER]->(u:UserLocation)
     RETURN m.MessageId AS Id, m.Message AS Message, 
@@ -1140,7 +1140,7 @@ curl -X POST http://localhost:8080/api/v1/instances/getting-started-server/queri
   -d '{
     "id": "messages-with-location",
     "autoStart": true,
-    "sources": [{"sourceId": "my-postgres"}, {"sourceId": "location-tracker"}],
+    "inputs": ["my-postgres", "location-tracker"],
     "query": "MATCH (m:Message)-[:FROM_USER]->(u:UserLocation) RETURN m.MessageId AS Id, m.Message AS Message, m.From AS Sender, u.location AS Location, u.status AS Status",
     "queryLanguage": "Cypher",
     "joins": [{
@@ -1161,7 +1161,7 @@ Invoke-RestMethod -Method Post -Uri http://localhost:8080/api/v1/instances/getti
   -Body '{
     "id": "messages-with-location",
     "autoStart": true,
-    "sources": [{"sourceId": "my-postgres"}, {"sourceId": "location-tracker"}],
+    "inputs": ["my-postgres", "location-tracker"],
     "query": "MATCH (m:Message)-[:FROM_USER]->(u:UserLocation) RETURN m.MessageId AS Id, m.Message AS Message, m.From AS Sender, u.location AS Location, u.status AS Status",
     "queryLanguage": "Cypher",
     "joins": [{

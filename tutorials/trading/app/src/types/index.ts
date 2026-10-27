@@ -106,7 +106,7 @@ export interface DrasiQuery {
   id: string;
   query: string;
   parameters?: Record<string, any>;
-  source_subscriptions: Array<{ source_id: string; pipeline: string[] }>;
+  inputs: Array<string | { component: string; port?: string; nodes?: string[]; relations?: string[]; pipeline?: string[] }>;
 }
 
 export interface ConnectionStatus {

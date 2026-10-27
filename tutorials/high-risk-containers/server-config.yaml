@@ -116,15 +116,15 @@ instances:
         autoStart: true
         queryLanguage: Cypher
 
-    # The sources this query subscribes to, and the labels it consumes from each.
-        sources:
-          - sourceId: k8s
+    # The inputs this query consumes, and the labels it consumes from each.
+        inputs:
+          - component: k8s
             nodes:
               - Pod
         # Run incoming Pod changes through the unwind middleware.
             pipeline:
               - extract-containers
-          - sourceId: devops
+          - component: devops
             nodes:
               - RiskyImage
 

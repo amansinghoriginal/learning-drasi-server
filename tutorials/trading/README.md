@@ -262,7 +262,7 @@ const queryConfig = {
     WHERE sp.price > 100
     RETURN s.symbol, sp.price
   `,
-  sources: [
+  inputs: [
     { sourceId: 'postgres-stocks', pipeline: [] },
     { sourceId: 'price-feed', pipeline: [] }
   ],

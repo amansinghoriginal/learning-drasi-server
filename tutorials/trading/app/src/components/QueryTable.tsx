@@ -206,13 +206,19 @@ function formatQueryConfig(config: Record<string, any>): string {
     }
   }
 
-  // Sources
-  if (config.sources && config.sources.length > 0) {
+  // Inputs: a bare component name, or an object with a port and label/pipeline options
+  if (config.inputs && config.inputs.length > 0) {
     lines.push('');
-    lines.push('sources:');
-    for (const src of config.sources) {
-      const sourceId = typeof src.sourceId === 'string' ? src.sourceId : JSON.stringify(src.sourceId);
-      lines.push(`  - sourceId: ${sourceId}`);
+    lines.push('inputs:');
+    for (const src of config.inputs) {
+      if (typeof src === 'string') {
+        lines.push(`  - ${src}`);
+        continue;
+      }
+      lines.push(`  - component: ${src.component}`);
+      if (src.port) {
+        lines.push(`    port: ${src.port}`);
+      }
       if (src.pipeline?.length) {
         lines.push(`    pipeline: [${src.pipeline.join(', ')}]`);
       }

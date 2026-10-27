@@ -81,15 +81,18 @@ instances:
 # =============================================================================
 # Continuous Queries
 # =============================================================================
-# Each query subscribes to the Room/Floor/Building node labels it needs and
-# declares the synthetic joins that connect them:
+# The room query declares the physical joins once:
 #   PART_OF_FLOOR    : Room.floor_id    -> Floor.id
 #   PART_OF_BUILDING : Floor.building_id -> Building.id
+# Its ordinary result nodes feed floor averages, then building averages.
+# Each alert query consumes the corresponding level's result nodes.
     queries:
   # Query 1: per-room comfort level (drives the building dashboard view).
       - id: building-comfort-ui
         autoStart: true
         queryLanguage: Cypher
+        result:
+          label: RoomComfort
         query: |
           MATCH
             (r:Room)-[:PART_OF_FLOOR]->(f:Floor)-[:PART_OF_BUILDING]->(b:Building)
@@ -107,8 +110,8 @@ instances:
             r.humidity AS Humidity,
             r.co2 AS CO2,
             ComfortLevel
-        sources:
-          - sourceId: building-facilities
+        inputs:
+          - component: building-facilities
             nodes:
               - Room
               - Floor
@@ -127,166 +130,79 @@ instances:
               - label: Building
                 property: id
 
-  # Query 2: overall building comfort (avg of floor averages).
-      - id: building-comfort-level-calc
-        autoStart: true
-        queryLanguage: Cypher
-        query: |
-          MATCH
-            (r:Room)-[:PART_OF_FLOOR]->(f:Floor)-[:PART_OF_BUILDING]->(b:Building)
-          WITH
-            f, b,
-            floor( 50 + (r.temperature - 72) + (r.humidity - 42) + CASE WHEN r.co2 > 500 THEN (r.co2 - 500) / 25 ELSE 0 END ) AS RoomComfortLevel
-          WITH
-            f, b,
-            avg(RoomComfortLevel) AS FloorComfortLevel
-          WITH
-            b,
-            avg(FloorComfortLevel) AS ComfortLevel
-          RETURN
-            b.id AS BuildingId,
-            ComfortLevel
-        sources:
-          - sourceId: building-facilities
-            nodes:
-              - Room
-              - Floor
-              - Building
-        joins:
-          - id: PART_OF_FLOOR
-            keys:
-              - label: Room
-                property: floor_id
-              - label: Floor
-                property: id
-          - id: PART_OF_BUILDING
-            keys:
-              - label: Floor
-                property: building_id
-              - label: Building
-                property: id
-
-  # Query 3: per-floor comfort (avg of the floor's rooms).
+  # Query 2: per-floor comfort, calculated from shared room results.
       - id: floor-comfort-level-calc
         autoStart: true
         queryLanguage: Cypher
+        result:
+          label: FloorComfort
         query: |
-          MATCH
-            (r:Room)-[:PART_OF_FLOOR]->(f:Floor)
-          WITH
-            f,
-            floor( 50 + (r.temperature - 72) + (r.humidity - 42) + CASE WHEN r.co2 > 500 THEN (r.co2 - 500) / 25 ELSE 0 END ) AS RoomComfortLevel
-          WITH
-            f,
-            avg(RoomComfortLevel) AS ComfortLevel
+          MATCH (r:RoomComfort)
           RETURN
-            f.id AS FloorId,
-            ComfortLevel
-        sources:
-          - sourceId: building-facilities
-            nodes:
-              - Room
-              - Floor
-        joins:
-          - id: PART_OF_FLOOR
-            keys:
-              - label: Room
-                property: floor_id
-              - label: Floor
-                property: id
+            r.FloorId AS FloorId,
+            r.FloorName AS FloorName,
+            r.BuildingId AS BuildingId,
+            r.BuildingName AS BuildingName,
+            avg(r.ComfortLevel) AS ComfortLevel
+        inputs:
+          - building-comfort-ui
+
+  # Query 3: overall building comfort (avg of floor averages, not room-weighted).
+      - id: building-comfort-level-calc
+        autoStart: true
+        queryLanguage: Cypher
+        result:
+          label: BuildingComfort
+        query: |
+          MATCH (f:FloorComfort)
+          RETURN
+            f.BuildingId AS BuildingId,
+            f.BuildingName AS BuildingName,
+            avg(f.ComfortLevel) AS ComfortLevel
+        inputs:
+          - floor-comfort-level-calc
 
   # Query 4: rooms outside the comfortable band (40-50).
       - id: room-alert
         autoStart: true
         queryLanguage: Cypher
         query: |
-          MATCH
-            (r:Room)
-          WITH
-            r.id AS RoomId,
-            r.name AS RoomName,
-            floor( 50 + (r.temperature - 72) + (r.humidity - 42) + CASE WHEN r.co2 > 500 THEN (r.co2 - 500) / 25 ELSE 0 END ) AS ComfortLevel
-          WHERE ComfortLevel < 40 OR ComfortLevel > 50
+          MATCH (r:RoomComfort)
+          WHERE r.ComfortLevel < 40 OR r.ComfortLevel > 50
           RETURN
-            RoomId, RoomName, ComfortLevel
-        sources:
-          - sourceId: building-facilities
-            nodes:
-              - Room
+            r.RoomId AS RoomId,
+            r.RoomName AS RoomName,
+            r.ComfortLevel AS ComfortLevel
+        inputs:
+          - building-comfort-ui
 
   # Query 5: floors whose average comfort is outside 40-50.
       - id: floor-alert
         autoStart: true
         queryLanguage: Cypher
         query: |
-          MATCH
-            (r:Room)-[:PART_OF_FLOOR]->(f:Floor)
-          WITH
-            f,
-            floor( 50 + (r.temperature - 72) + (r.humidity - 42) + CASE WHEN r.co2 > 500 THEN (r.co2 - 500) / 25 ELSE 0 END ) AS RoomComfortLevel
-          WITH
-            f,
-            avg(RoomComfortLevel) AS ComfortLevel
-          WHERE
-            ComfortLevel < 40 OR ComfortLevel > 50
+          MATCH (f:FloorComfort)
+          WHERE f.ComfortLevel < 40 OR f.ComfortLevel > 50
           RETURN
-            f.id AS FloorId,
-            f.name AS FloorName,
-            ComfortLevel
-        sources:
-          - sourceId: building-facilities
-            nodes:
-              - Room
-              - Floor
-        joins:
-          - id: PART_OF_FLOOR
-            keys:
-              - label: Room
-                property: floor_id
-              - label: Floor
-                property: id
+            f.FloorId AS FloorId,
+            f.FloorName AS FloorName,
+            f.ComfortLevel AS ComfortLevel
+        inputs:
+          - floor-comfort-level-calc
 
   # Query 6: the building when its overall comfort is outside 40-50.
       - id: building-alert
         autoStart: true
         queryLanguage: Cypher
         query: |
-          MATCH
-            (r:Room)-[:PART_OF_FLOOR]->(f:Floor)-[:PART_OF_BUILDING]->(b:Building)
-          WITH
-            f, b,
-            floor( 50 + (r.temperature - 72) + (r.humidity - 42) + CASE WHEN r.co2 > 500 THEN (r.co2 - 500) / 25 ELSE 0 END ) AS RoomComfortLevel
-          WITH
-            f, b,
-            avg(RoomComfortLevel) AS FloorComfortLevel
-          WITH
-            b,
-            avg(FloorComfortLevel) AS ComfortLevel
-          WHERE
-            ComfortLevel < 40 OR ComfortLevel > 50
+          MATCH (b:BuildingComfort)
+          WHERE b.ComfortLevel < 40 OR b.ComfortLevel > 50
           RETURN
-            b.id AS BuildingId,
-            b.name AS BuildingName,
-            ComfortLevel
-        sources:
-          - sourceId: building-facilities
-            nodes:
-              - Room
-              - Floor
-              - Building
-        joins:
-          - id: PART_OF_FLOOR
-            keys:
-              - label: Room
-                property: floor_id
-              - label: Floor
-                property: id
-          - id: PART_OF_BUILDING
-            keys:
-              - label: Floor
-                property: building_id
-              - label: Building
-                property: id
+            b.BuildingId AS BuildingId,
+            b.BuildingName AS BuildingName,
+            b.ComfortLevel AS ComfortLevel
+        inputs:
+          - building-comfort-level-calc
 
 # =============================================================================
 # Reactions

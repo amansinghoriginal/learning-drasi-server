@@ -242,8 +242,9 @@ queries and dashboard.
 
 Set a room to an uncomfortable value, stop Server with Ctrl+C, and run
 `python3 scripts/demo.py start-demo` again. PostgreSQL retains your readings.
-The memory-backed queries bootstrap from those current rows, and the dashboard
-returns to the same state. Layout edits and query/API changes are not persisted
+The room query bootstraps from those current rows; the floor, building and alert
+queries initialize from their upstream query outputs and then follow changes.
+The dashboard returns to the same state. Layout edits and query/API changes are not persisted
 by this tutorial configuration.
 
 This is a normal restart and fresh bootstrap, **not** a claim of durable query
@@ -299,7 +300,10 @@ The PostgreSQL source connects with the credentials above (provided via environm
 
 ### The Continuous Queries
 
-Each query computes a **comfort level** with the same formula. A value between **40 and 50** is comfortable; the seed values (70°F, 40%, 10 ppm) give `50 + (70-72) + (40-42) + 0 = 46`.
+The room query computes a **comfort level** once per room. The other queries
+reuse its maintained results rather than repeating the formula or database
+joins. A value between **40 and 50** is comfortable; the seed values (70°F, 40%,
+10 ppm) give `50 + (70-72) + (40-42) + 0 = 46`.
 
 ```cypher
 floor( 50 + (r.temperature - 72) + (r.humidity - 42)
@@ -308,22 +312,28 @@ floor( 50 + (r.temperature - 72) + (r.humidity - 42)
 
 There are six queries:
 
-| Query | What it returns |
-| ----- | --------------- |
-| `building-comfort-ui` | One row per room with its comfort level — the feed that drives the dashboard view |
-| `building-comfort-level-calc` | The building's overall comfort level |
-| `floor-comfort-level-calc` | Each floor's average comfort level |
-| `room-alert` | Only the rooms whose comfort is outside 40–50 |
-| `floor-alert` | Only the floors whose average comfort is outside 40–50 |
-| `building-alert` | The building, when its overall comfort is outside 40–50 |
+| Query | Input | What it returns |
+| ----- | ----- | --------------- |
+| `building-comfort-ui` | `building-facilities` | One `RoomComfort` node per room, including its floor/building context |
+| `floor-comfort-level-calc` | `building-comfort-ui` | One `FloorComfort` node per floor, including its building context |
+| `building-comfort-level-calc` | `floor-comfort-level-calc` | One `BuildingComfort` node per building |
+| `room-alert` | `building-comfort-ui` | Only the rooms whose comfort is outside 40–50 |
+| `floor-alert` | `floor-comfort-level-calc` | Only the floors whose average comfort is outside 40–50 |
+| `building-alert` | `building-comfort-level-calc` | Only the buildings whose overall comfort is outside 40–50 |
+
+Every returned alias is a property on the result node. `result.label` names its
+label; it does not change the graph-change format. The same output can feed
+another query, an alert filter and the dashboard without a conversion component.
 
 #### Synthetic joins connect the entities
 
-PostgreSQL knows `Room.floor_id` references `Floor.id` through a foreign key, but Drasi doesn't read foreign keys. Instead, each query **declares** the relationships it needs as synthetic joins, so the Cypher can walk from room to floor to building:
+PostgreSQL knows `Room.floor_id` references `Floor.id` through a foreign key, but
+Drasi doesn't read foreign keys. The room query declares the two synthetic joins
+once, so it can return both the room's measurements and its floor/building context:
 
 ```yaml
-sources:
-  - sourceId: building-facilities
+inputs:
+  - component: building-facilities
     nodes:
       - Room
       - Floor
@@ -343,7 +353,7 @@ joins:
         property: id
 ```
 
-With those joins declared, a query can match the whole hierarchy:
+With those joins declared, the room query matches the whole hierarchy:
 
 ```cypher
 MATCH (r:Room)-[:PART_OF_FLOOR]->(f:Floor)-[:PART_OF_BUILDING]->(b:Building)
@@ -351,32 +361,50 @@ MATCH (r:Room)-[:PART_OF_FLOOR]->(f:Floor)-[:PART_OF_BUILDING]->(b:Building)
 
 #### Aggregating up the hierarchy
 
-Half of the queries don't just read rooms — they **roll comfort levels up** the building. In a Continuous Query, an aggregate such as `avg()` inside a `WITH` groups by whatever non-aggregated values travel alongside it, exactly like SQL's `GROUP BY`.
+The floor query reads `RoomComfort` nodes, grouping by their floor and building
+properties. It needs neither the original database joins nor the room formula:
 
-**One stage — average a floor's rooms.** `floor-comfort-level-calc` keeps the floor `f` in the `WITH`, so `avg()` produces one value per floor:
-
-```cypher
-WITH f, floor( 50 + (r.temperature - 72) + ... ) AS RoomComfortLevel
-WITH f, avg(RoomComfortLevel) AS ComfortLevel
-RETURN f.id AS FloorId, ComfortLevel
+```yaml
+- id: floor-comfort-level-calc
+  inputs: [building-comfort-ui]
+  result:
+    label: FloorComfort
+  query: |
+    MATCH (r:RoomComfort)
+    RETURN r.FloorId AS FloorId, r.FloorName AS FloorName,
+      r.BuildingId AS BuildingId, r.BuildingName AS BuildingName,
+      avg(r.ComfortLevel) AS ComfortLevel
 ```
 
-**Two stages — average the averages.** `building-alert` aggregates twice. Carrying `f, b` groups the first `avg()` by floor; dropping `f` from the next `WITH` widens the grouping so the second `avg()` rolls the floor averages up into a single building level:
+The building query averages those floor results. Each floor contributes once,
+so a floor with more rooms does not receive extra weight:
 
-```cypher
-WITH f, b, avg(RoomComfortLevel) AS FloorComfortLevel   // rooms  -> floor
-WITH b,    avg(FloorComfortLevel) AS ComfortLevel        // floors -> building
+```yaml
+- id: building-comfort-level-calc
+  inputs: [floor-comfort-level-calc]
+  result:
+    label: BuildingComfort
+  query: |
+    MATCH (f:FloorComfort)
+    RETURN f.BuildingId AS BuildingId, f.BuildingName AS BuildingName,
+      avg(f.ComfortLevel) AS ComfortLevel
 ```
 
-**Filtering on an aggregate.** The `floor-alert` and `building-alert` queries place a `WHERE` *after* the aggregation — like SQL's `HAVING` — so a floor or the building only shows up while its average is outside the comfortable band:
+Alerts are simple filters over the corresponding maintained output. For example,
+the building alert does no aggregation itself:
 
 ```cypher
-WITH f, avg(RoomComfortLevel) AS ComfortLevel
-WHERE ComfortLevel < 40 OR ComfortLevel > 50
-RETURN f.id AS FloorId, ComfortLevel
+MATCH (b:BuildingComfort)
+WHERE b.ComfortLevel < 40 OR b.ComfortLevel > 50
+RETURN b.BuildingId AS BuildingId, b.BuildingName AS BuildingName,
+  b.ComfortLevel AS ComfortLevel
 ```
 
-Because these are *continuous* queries, the aggregates are maintained **incrementally**: when one room's reading changes, Drasi recomputes only the affected floor and building averages and emits just that change — it never rescans every room.
+Repeat the cold-room exercise while watching all three dashboard levels. The
+room changes first, its floor average changes, and the building average follows;
+the alert filters add or remove their rows as thresholds are crossed. These
+queries maintain their results incrementally, and each passes ordinary
+graph-change records to the next.
 
 ### The Dashboard Reaction
 
@@ -426,12 +454,14 @@ And the reaction renders it live:
 ### Where ComputationGraph fits
 
 The named instance `building-comfort-server` owns one ComputationGraph. Its
-PostgreSQL source supplies all six query transformers; the dashboard and log
-reactions consume their result changes. The ordinary configuration interfaces
-are adapters into that graph, not a second execution engine.
+PostgreSQL source feeds the room query. That query feeds the floor query, which
+feeds the building query; each level also feeds its own alert query and the
+dashboard. `inputs` declarations compile into the same graph's checked ports and
+pipes, with snapshot initialization and live delivery, not another execution engine.
 
-You do not need an `executionMode` field, an enablement flag, explicit ports and
-pipes, or a rewrite of the comfort formula to use this runtime.
+You do not need an `executionMode` field or an enablement flag. The single output
+on each query resolves automatically; an input with several outputs requires an
+explicit port or a declared primary.
 
 Check the running components at any time:
 

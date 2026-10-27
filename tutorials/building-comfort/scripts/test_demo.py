@@ -192,8 +192,36 @@ class DemoTests(unittest.TestCase):
             for name, floor, temperature in (("a", "f1", 70), ("b", "f1", 70), ("c", "f2", 82))
         ]
         result = verify_demo.expected_results(rooms)
-        self.assertEqual(result["building-comfort-level-calc"], [{"BuildingId": "b", "ComfortLevel": 52}])
+        self.assertEqual(
+            result["building-comfort-level-calc"],
+            [{"BuildingId": "b", "BuildingName": "b", "ComfortLevel": 52}],
+        )
         self.assertEqual(len(result["building-alert"]), 1)
+        self.assertEqual(
+            result["floor-comfort-level-calc"][0],
+            {"FloorId": "f1", "FloorName": "f1", "BuildingId": "b",
+             "BuildingName": "b", "ComfortLevel": 46},
+        )
+        self.assertEqual(
+            result["floor-alert"],
+            [{"FloorId": "f2", "FloorName": "f2", "ComfortLevel": 58}],
+        )
+
+    def test_reference_keeps_names_through_the_shared_aggregation_chain(self):
+        rooms = [{"id": "r", "name": "Office", "floor_id": "f", "floor_name": "Ground",
+                  "building_id": "b", "building_name": "HQ", "temperature": 28,
+                  "humidity": 40, "co2": 10}]
+        result = verify_demo.expected_results(rooms)
+        self.assertEqual(result["room-alert"], [
+            {"RoomId": "r", "RoomName": "Office", "ComfortLevel": 4},
+        ])
+        self.assertEqual(result["floor-alert"], [
+            {"FloorId": "f", "FloorName": "Ground", "ComfortLevel": 4},
+        ])
+        self.assertEqual(result["building-alert"], [
+            {"BuildingId": "b", "BuildingName": "HQ", "ComfortLevel": 4},
+        ])
+        self.assertTrue(all(not rows for rows in verify_demo.expected_results([]).values()))
 
 
 if __name__ == "__main__":

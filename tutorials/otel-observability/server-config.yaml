@@ -114,13 +114,13 @@ instances:
             s.version AS deployVersion,
             s.name AS service,
             m.value AS latencyMs
-        sources:
-          - sourceId: k8s
+        inputs:
+          - component: k8s
             nodes:
               - Deployment
             pipeline:
               - promote-version
-          - sourceId: otel
+          - component: otel
             nodes:
               - Service
               - Metric
@@ -155,13 +155,13 @@ instances:
             s.version AS deployVersion,
             s.name AS service,
             m.value AS latencyMs
-        sources:
-          - sourceId: k8s
+        inputs:
+          - component: k8s
             nodes:
               - Deployment
             pipeline:
               - promote-version
-          - sourceId: otel
+          - component: otel
             nodes:
               - Service
               - Metric
@@ -203,19 +203,19 @@ instances:
             s.name AS service,
             m.value AS latencyMs,
             p.threshold_ms AS thresholdMs
-        sources:
-          - sourceId: k8s
+        inputs:
+          - component: k8s
             nodes:
               - Deployment
             pipeline:
               - promote-version
-          - sourceId: otel
+          - component: otel
             nodes:
               - Service
               - Metric
             relations:
               - REPORTS
-          - sourceId: slo
+          - component: slo
             nodes:
               - service_slo_policy
         joins:
@@ -246,8 +246,8 @@ instances:
         query: |
           MATCH (a:Service)-[:DEPENDS_ON]->(b:Service)
           RETURN a.name AS fromService, b.name AS toService
-        sources:
-          - sourceId: otel
+        inputs:
+          - component: otel
             nodes:
               - Service
             relations:
@@ -265,8 +265,8 @@ instances:
             svc.name AS service,
             m.value AS pulse,
             m.receivedAt AS lastSeen
-        sources:
-          - sourceId: otel
+        inputs:
+          - component: otel
             nodes:
               - Service
               - Metric
@@ -290,8 +290,8 @@ instances:
                      )
                 )
           RETURN svc.name AS service
-        sources:
-          - sourceId: otel
+        inputs:
+          - component: otel
             nodes:
               - Service
               - Metric

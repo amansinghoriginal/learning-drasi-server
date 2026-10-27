@@ -62,17 +62,26 @@ def expected_results(rooms):
     for identifier, entries in floors.items():
         room = entries[0][0]
         comfort = sum(value for _, value in entries) / len(entries)
-        row = {"FloorId": identifier, "ComfortLevel": comfort}
+        row = {
+            "FloorId": identifier, "FloorName": room["floor_name"],
+            "BuildingId": room["building_id"], "BuildingName": room["building_name"],
+            "ComfortLevel": comfort,
+        }
         result["floor-comfort-level-calc"].append(row)
         if comfort < 40 or comfort > 50:
-            result["floor-alert"].append(dict(row, FloorName=room["floor_name"]))
+            result["floor-alert"].append(
+                {key: row[key] for key in ("FloorId", "FloorName", "ComfortLevel")}
+            )
         buildings.setdefault(room["building_id"], []).append((room, comfort))
     for identifier, entries in buildings.items():
         comfort = sum(value for _, value in entries) / len(entries)
-        row = {"BuildingId": identifier, "ComfortLevel": comfort}
+        row = {
+            "BuildingId": identifier, "BuildingName": entries[0][0]["building_name"],
+            "ComfortLevel": comfort,
+        }
         result["building-comfort-level-calc"].append(row)
         if comfort < 40 or comfort > 50:
-            result["building-alert"].append(dict(row, BuildingName=entries[0][0]["building_name"]))
+            result["building-alert"].append(dict(row))
     return result
 
 

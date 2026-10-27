@@ -219,7 +219,7 @@ export class DrasiClient {
           id: queryDef.id,
           query: queryDef.query,
           queryLanguage: 'Cypher',
-          sources: queryDef.sources,
+          inputs: queryDef.inputs,
           joins: queryDef.joins,
           autoStart: true
         };
@@ -286,10 +286,7 @@ export class DrasiClient {
         RETURN ${allFields.join(',\n               ')}
         ORDER BY sp.volume DESC
       `,
-      sources: [
-        { sourceId: 'postgres-stocks', pipeline: [] },
-        { sourceId: 'price-feed', pipeline: [] }
-      ],
+      inputs: ['postgres-stocks', 'price-feed'],
       joins: [HAS_PRICE]
     };
 
